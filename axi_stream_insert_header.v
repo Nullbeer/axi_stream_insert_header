@@ -86,7 +86,7 @@ module axi_stream_insert_header # (
 	
 	assign keep_out		= last_out ? 
 						(r2_last_in ? (r_keep_in << d0_byte_cnt_shift) 
-									: (r_keep_insert << d0_byte_cnt_shift|r_keep_in >> r_byte_insert_cnt)): 
+						 : (r_keep_insert << d0_byte_cnt_shift|r_keep_in >> (r_byte_insert_cnt+1))): 
 						((valid_out) ? 4'b1111 : 4'b0000);
 /***************************************************************/
 
