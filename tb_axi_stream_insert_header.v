@@ -1,186 +1,166 @@
-module axi_stream_insert_header # (
-	parameter DATA_WD = 32,
-	parameter DATA_BYTE_WD = DATA_WD / 8,
-	parameter BYTE_CNT_WD = $clog2(DATA_BYTE_WD)
-)(
-	input clk,
-	input rst_n,
-	// AXI Stream input original data
-	input valid_in,
-	input [DATA_WD-1 : 0] data_in,
-	input [DATA_BYTE_WD-1 : 0] keep_in,
-	input last_in,
-	output ready_in,
-	// AXI Stream output with header inserted
-	output valid_out,
-	output [DATA_WD-1 : 0] data_out,
-	output [DATA_BYTE_WD-1 : 0] keep_out,
-	output last_out,
-	input ready_out,
-	// The header to be inserted to AXI Stream input
-	input valid_insert,
-	input [DATA_WD-1 : 0] data_insert,
-	input [DATA_BYTE_WD-1 : 0] keep_insert,
-	input [BYTE_CNT_WD-1 : 0] byte_insert_cnt,
-	output ready_insert
+`timescale 1ns / 1ns
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 05/30/2023 09:57:58 AM
+// Design Name: 
+// Module Name: tb_axi_stream_insert_header
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
+module tb_axi_stream_insert_header();
+
+	parameter DATA_WD = 32;
+	parameter DATA_BYTE_WD = DATA_WD / 8;
+	parameter BYTE_CNT_WD = $clog2(DATA_BYTE_WD);
+
+	reg 		clk;
+	reg 		rst_n;
+	reg 		valid_in;
+	reg 		[DATA_WD-1 : 0] data_in;
+	reg 		[DATA_BYTE_WD-1 : 0] keep_in;
+	reg 		last_in;
+     
+	wire 		ready_in;
+	wire 		valid_out;
+	wire 		[DATA_WD-1 : 0] data_out;
+	wire 		[DATA_BYTE_WD-1 : 0] keep_out;
+	wire 		last_out;
+	reg 		ready_out; 
+
+	reg 		valid_insert;
+	reg 		[DATA_WD-1 : 0] data_insert;
+	reg 		[DATA_BYTE_WD-1 : 0] keep_insert;
+	reg 		[BYTE_CNT_WD-1 : 0] byte_insert_cnt;
+
+	wire 		ready_insert;
+
+
+
+axi_stream_insert_header axi_stream_insert_header_u0
+(
+	.clk				(clk			),
+	.rst_n				(rst_n			),
+	.valid_in			(valid_in		),
+	.data_in			(data_in		),
+	.keep_in			(keep_in		),
+	.last_in			(last_in		),
+	.ready_in			(ready_in		),
+	.valid_out			(valid_out		),
+	.data_out			(data_out		),
+	.keep_out			(keep_out		),
+	.last_out			(last_out		),
+	.ready_out			(ready_out		),
+	.valid_insert		(valid_insert	),
+	.data_insert		(data_insert	),
+	.keep_insert		(keep_insert	),
+	.byte_insert_cnt	(byte_insert_cnt),
+	.ready_insert		(ready_insert	)
 );
-/*****************************寄存器****************************/
+
+initial clk = 1;
+always #10 clk=~clk;
+
+integer number,i,j;
+
+
+function [3:0] random_keep_insert;
+	input [BYTE_CNT_WD-1:0] number_rk;
+	case(number_rk)
+		0: random_keep_insert = 4'b0001;
+		1: random_keep_insert = 4'b0011;
+		2: random_keep_insert = 4'b0111;
+		3: random_keep_insert = 4'b1111;
+	endcase
+endfunction
+
+function [3:0] random_last_keep_in;
+	input integer number_rl;
+	case(number_rl)
+		0: random_last_keep_in = 4'b1000;
+		1: random_last_keep_in = 4'b1100;
+		2: random_last_keep_in = 4'b1110;
+		3: random_last_keep_in = 4'b1111;
+	endcase
+endfunction
+
+wire shakehand_clk = clk&valid_in&ready_in;
+
+
+//验证基本功能
+initial begin
+	rst_n = 1'd0;
+	valid_insert = 0;
+	byte_insert_cnt = 0;
+	keep_insert = 0;
+	data_insert = 0;
+	last_in=0;
+	valid_in=0;
+	data_in=0;
+	keep_in=0;
+	#40;
+	rst_n = 1'd1;
+    #60;
+	for(j=0;j<10;j=j+1) begin
+	#1;
+		valid_insert = 1;
+		byte_insert_cnt = $random()%4;
+		keep_insert = random_keep_insert(byte_insert_cnt);
+		data_insert = $random();
+		last_in = 0;
+	#19;
+		number = {$random()}%8+10;
+		keep_in = 4'b1111;
+		valid_in = 1;
+		for(i=0;i<number-1;i=i+1)begin
+			data_in = $random();
+			@(posedge shakehand_clk);
+		end
+		
+		last_in = 1;
+		valid_in = 1;
+		data_in = $random();
+
+		keep_in = random_last_keep_in($random()%4);
+		@(posedge shakehand_clk);
 	
-	reg r_ready_in;
-	reg [DATA_WD-1 : 0] r1_data_in,r2_data_in;
-	reg [DATA_BYTE_WD-1 : 0] r_keep_in;
-	
-	reg r_ready_insert;
-	reg [DATA_WD-1 : 0] r_data_insert; 
-	reg [DATA_WD-1 : 0] r_keep_insert; 
-	reg [BYTE_CNT_WD-1 : 0] r_byte_insert_cnt; 
-	reg r1_shakehand_in,r2_shakehand_in;
-	reg r1_last_in,r2_last_in;
+		data_in = 0;
+		valid_in = 0;
+		valid_insert = 0;
+		last_in = 0;
+		keep_in = 0;
+		#100;
+	end
+end
 
-/***************************************************************/
+//验证逐级反压
 
-/*****************************网表型****************************/
-	
-	wire shakehand_in;
-	wire shakehand_insert;
-	wire shakehand_out;
-
-	wire [DATA_WD-1 : 0] d0_data_in;
-	wire [DATA_WD-1 : 0] d0_data_insert;
-	wire [DATA_WD-1 : 0] data_out_step,data_out_start;
-	wire [DATA_BYTE_WD :0] d0_byte_cnt_shift;
-	wire [DATA_WD :0] d0_byte_cnt_shift_8;
-	wire [DATA_WD :0] d0_byte_cnt_8;
-
-	// wire [DATA_BYTE_WD-1 : 0] invert_keep_insert;
-
-
-/***************************************************************/
-
-
-/*****************************组合逻辑****************************/
-	
-	assign ready_in = r_ready_in && (~valid_out || ready_out);
-	assign shakehand_in = ready_in && valid_in;
-	
-	assign ready_insert = r_ready_insert && (~valid_out || ready_out);
-	assign shakehand_insert = ready_insert && valid_insert;
-
-    assign shakehand_out = valid_out && ready_out;
-
-	assign d0_data_insert = r_data_insert & {{8{r_keep_insert[3]}},{8{r_keep_insert[2]}},{8{r_keep_insert[1]}},{8{r_keep_insert[0]}}};
-	assign d0_byte_cnt_shift = 'd4-(r_byte_insert_cnt+1);
-	assign d0_byte_cnt_shift_8 = d0_byte_cnt_shift << 3;	
-	assign d0_byte_cnt_8 = (r_byte_insert_cnt+1) << 3;	
-	assign d0_data_in = r1_data_in & {{8{r_keep_in[3]}},{8{r_keep_in[2]}},{8{r_keep_in[1]}},{8{r_keep_in[0]}}};
-
-	assign last_out = (|(r_keep_insert & r_keep_in)) ? r2_last_in:r1_last_in;
-	assign valid_out = (|r_keep_in) | last_out; 
-
-	// assign invert_keep_insert = r_keep_insert[0:3];
-
-	assign data_out_start 	= d0_data_insert << d0_byte_cnt_shift_8 | d0_data_in >> d0_byte_cnt_8;
-	assign data_out_step 	= r2_data_in << d0_byte_cnt_shift_8 | d0_data_in >> d0_byte_cnt_8;
-	// assign data_out 		= (r1_shakehand_in && !r2_shakehand_in) ? data_out_start:data_out_step;
-	assign data_out 		= (r1_shakehand_in && !r2_shakehand_in) ? data_out_start:data_out_step;
-	
-	assign keep_out		= last_out ? r_keep_in << d0_byte_cnt_shift : 
-						((valid_out) ? 4'b1111 : 4'b0000);
-/***************************************************************/
-
-/******************************进程*****************************/
-
-	always@(posedge clk) begin
-		if(!rst_n) begin
-			r1_shakehand_in <= 1'd0;
-			r2_shakehand_in <= 1'd0;
-		end
-		else begin
-			r1_shakehand_in <= shakehand_in;
-			r2_shakehand_in <= r1_shakehand_in;
-		end
+	initial begin
+		ready_out = 1'd1;
+		#600;
+		#1;
+		ready_out = 1'd0;
+		#19
+		#100;
+		ready_out = 1'd1;
+		#300;
+		#1
+		ready_out = 1'd0;
+		#19
+		#50;
+		ready_out = 1'd1;
 	end
 
-	always@(posedge clk) begin
-		if(!rst_n) begin
-			r1_last_in <= 1'd0;
-			r2_last_in <= 1'd0;
-		end
-		else begin
-			r1_last_in <= last_in;
-			r2_last_in <= r1_last_in;
-		end
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || last_in)
-			r_ready_in <= 1'd0;
-		else if(shakehand_insert)
-			r_ready_in <= 1'd1;
-		else 
-			r_ready_in <= r_ready_in;
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || r1_last_in) begin
-			r1_data_in <= 'd0;
-		end
-		else if(shakehand_in) begin
-			r1_data_in <= data_in;
-		end
-		else begin
-			r1_data_in <= r1_data_in;	
-		end
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || last_out) 
-			r2_data_in <= 'd0;
-		else if(shakehand_out)
-			r2_data_in <= d0_data_in;
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || last_out)
-			r_keep_in <= 'd0;
-		else if(shakehand_in)
-			r_keep_in <= keep_in;
-		else 
-			r_keep_in <= r_keep_in;
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || last_out)
-			r_ready_insert <= 1'd1;
-		else if(shakehand_insert)
-			r_ready_insert <= 1'd0;
-		else
-			r_ready_insert <= r_ready_insert;	
-	end
-
-	always@(posedge clk) begin
-		if(!rst_n || last_out) begin
-			r_data_insert <= 'd0;
-			r_keep_insert <= 'd0;
-		end
-		else if(shakehand_insert) begin
-			r_data_insert <= data_insert;
-			r_keep_insert <= keep_insert;
-		end
-		else begin
-			r_data_insert <= r_data_insert;	
-			r_keep_insert <= r_keep_insert;
-		end
-	end
-	
-	always@(posedge clk) begin
-		if(!rst_n || last_out)
-			r_byte_insert_cnt <= 'd0;
-		else if(shakehand_insert)
-			r_byte_insert_cnt <= byte_insert_cnt;
-		else
-			r_byte_insert_cnt <= r_byte_insert_cnt;	
-	end
-
-/***************************************************************/
 endmodule
