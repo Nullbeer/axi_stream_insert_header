@@ -152,13 +152,13 @@ end
 		#600;
 		#1;
 		ready_out = 1'd0;
-		#19
+		#18
 		#100;
 		ready_out = 1'd1;
 		#300;
 		#1
 		ready_out = 1'd0;
-		#19
+		#18
 		#50;
 		ready_out = 1'd1;
 	end
