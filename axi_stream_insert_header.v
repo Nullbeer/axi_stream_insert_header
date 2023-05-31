@@ -34,8 +34,9 @@ module axi_stream_insert_header # (
 	reg [DATA_WD-1 : 0] r_data_insert; 
 	reg [DATA_WD-1 : 0] r_keep_insert; 
 	reg [BYTE_CNT_WD-1 : 0] r_byte_insert_cnt; 
-	reg r1_shakehand_insert,r2_shakehand_insert;
+	reg r1_shakehand_in,r2_shakehand_in;
 	reg r1_last_in,r2_last_in;
+	reg start_flag;
 
 
 /***************************************************************/
@@ -84,7 +85,7 @@ module axi_stream_insert_header # (
 	assign data_out_start 	= d0_data_insert << d0_byte_cnt_shift_8 | d0_data_in >> d0_byte_cnt_8;
 	assign data_out_step 	= r2_data_in << d0_byte_cnt_shift_8 | d0_data_in >> d0_byte_cnt_8;
 	// assign data_out 		= (r1_shakehand_in && !r2_shakehand_in) ? data_out_start:data_out_step;
-	assign data_out 		= (r2_shakehand_insert) ? data_out_start:data_out_step;
+	assign data_out 		= (start_flag && r1_shakehand_in && !r2_shakehand_in) ? data_out_start:data_out_step;
 	
 	assign keep_out		= last_out ? 
 						(r2_last_in ? (r_keep_in << d0_byte_cnt_shift) 
@@ -96,17 +97,26 @@ module axi_stream_insert_header # (
 
 	always@(posedge clk) begin
 		if(!rst_n) begin
-			r1_shakehand_insert <= 1'd0;
-			r2_shakehand_insert <= 1'd0;
+			r1_shakehand_in <= 1'd0;
+			r2_shakehand_in <= 1'd0;
 
 		end
 		else begin
-			r1_shakehand_insert <= shakehand_insert;
-			r2_shakehand_insert <= r1_shakehand_insert;
+			r1_shakehand_in <= shakehand_in;
+			r2_shakehand_in <= r1_shakehand_in;
 		end
 	end
 
-
+	always@(posedge clk) begin
+		if(!rst_n) 
+			start_flag <= 1'd0;
+		else if(shakehand_insert)
+			start_flag <= 1'd1;
+		else if(start_flag&&r2_shakehand_in)
+		    start_flag <= 1'd0;
+		else
+		      start_flag <= start_flag;
+	end
 
 	always@(posedge clk) begin
 		if(!rst_n) begin
