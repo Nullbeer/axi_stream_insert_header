@@ -4,7 +4,7 @@ module tb_axi_stream_insert_header();
 	parameter MAX_DELAY = 5;
 
 
-	parameter DATA_WD = 32;
+	parameter DATA_WD = 16;
 	parameter DATA_BYTE_WD = DATA_WD / 8;
 	parameter BYTE_CNT_WD = $clog2(DATA_BYTE_WD);
 
@@ -73,7 +73,7 @@ function [DATA_WD-1 : 0] random_keep_insert;
     end
 endfunction
 
-//随机产生last keep in
+//随机产生last last in
 function [DATA_WD-1 : 0] random_last_keep_in;
 	input integer number_rl;
 
