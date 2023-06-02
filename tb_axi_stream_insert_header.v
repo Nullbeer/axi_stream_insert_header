@@ -67,7 +67,7 @@ function [DATA_WD-1 : 0] random_keep_insert;
     end
 endfunction
 
-//随机产生last last in
+//随机产生last keep in
 function [DATA_WD-1 : 0] random_last_keep_in;
 	input integer number_rl;
 
