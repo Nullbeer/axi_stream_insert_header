@@ -1,26 +1,8 @@
-`timescale 1ns / 1ns
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 05/30/2023 09:57:58 AM
-// Design Name: 
-// Module Name: tb_axi_stream_insert_header
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
-
-
 module tb_axi_stream_insert_header();
+
+	parameter MAX_DATA_COUNT = 5;
+	parameter MAX_DELAY = 5;
+
 
 	parameter DATA_WD = 32;
 	parameter DATA_BYTE_WD = DATA_WD / 8;
@@ -70,97 +52,129 @@ axi_stream_insert_header axi_stream_insert_header_u0
 	.ready_insert		(ready_insert	)
 );
 
-initial clk = 1;
-always #10 clk=~clk;
 
-integer number,i,j;
-
-
-function [3:0] random_keep_insert;
+// 随机产生keep insert
+function [DATA_WD-1 : 0] random_keep_insert; 
 	input [BYTE_CNT_WD-1:0] number_rk;
-	case(number_rk)
-		0: random_keep_insert = 4'b0001;
-		1: random_keep_insert = 4'b0011;
-		2: random_keep_insert = 4'b0111;
-		3: random_keep_insert = 4'b1111;
-	endcase
+
+	integer j_insert;
+	begin
+	random_keep_insert = 1;
+        for(j_insert=0;j_insert<number_rk;j_insert=j_insert+1) begin
+            random_keep_insert = random_keep_insert << 1;
+            random_keep_insert = random_keep_insert | 1'b1;
+        end
+    end
 endfunction
 
-function [3:0] random_last_keep_in;
+//随机产生last last in
+function [DATA_WD-1 : 0] random_last_keep_in;
 	input integer number_rl;
-	case(number_rl)
-		0: random_last_keep_in = 4'b1000;
-		1: random_last_keep_in = 4'b1100;
-		2: random_last_keep_in = 4'b1110;
-		3: random_last_keep_in = 4'b1111;
-	endcase
+
+	integer j_last;
+	begin
+	j_last = 0;
+	random_last_keep_in = 0;
+        for(j_last=0;j_last<number_rl;j_last=j_last+1) begin
+            random_last_keep_in = random_last_keep_in << 1;
+            random_last_keep_in = random_last_keep_in | 1'b1;
+        end
+	random_last_keep_in = ~ random_last_keep_in;
+    end
 endfunction
 
-wire shakehand_clk = clk&valid_in&ready_in;
 
 
-//验证基本功能
+initial clk = 1;
+always #10 clk <= ~clk;
+
+
 initial begin
-	rst_n = 1'd0;
-	valid_insert = 0;
-	byte_insert_cnt = 0;
-	keep_insert = 0;
-	data_insert = 0;
-	last_in=0;
-	valid_in=0;
-	data_in=0;
-	keep_in=0;
-	#40;
-	rst_n = 1'd1;
-    #60;
-	for(j=0;j<10;j=j+1) begin
-	#1;
-		valid_insert = 1;
-		byte_insert_cnt = $random()%4;
-		keep_insert = random_keep_insert(byte_insert_cnt);
-		data_insert = $random();
-		last_in = 0;
-	#19;
-		number = {$random()}%8+10;
-		keep_in = 4'b1111;
-		valid_in = 1;
-		for(i=0;i<number-1;i=i+1)begin
-			data_in = $random();
-			@(posedge shakehand_clk);
-		end
-		
-		last_in = 1;
-		valid_in = 1;
-		data_in = $random();
+	rst_n = 0;
+	#50;
+	rst_n = 1;
+end
 
-		keep_in = random_last_keep_in($random()%4);
-		@(posedge shakehand_clk);
+
+// 随机产生数据通路数据
+integer data_count,delay_in;
+integer i;
+initial begin
+	valid_in = 0;
+	data_in = 0;
+	last_in = 0;
+	keep_in = 0;
+	#30;
 	
-		data_in = 0;
+	repeat(100) begin
+		data_count = {$random()} % MAX_DATA_COUNT + 2;
+			
+		for(i=0;i<data_count;i=i+1) begin
+			valid_in = 1;
+			data_in = {$random()};
+			keep_in = 32'hFFFF_FFFF;
+			@(posedge clk);
+			while(!ready_in) begin 
+				#1;
+			end
+			#1;
+
+		end
+		data_in = {$random()};
+		keep_in = random_last_keep_in({$random() % DATA_BYTE_WD});
+		last_in = 1'd1;
+		@(posedge clk);
+		while(!ready_in) begin 
+			#1;
+		end
+		#1;
+
 		valid_in = 0;
-		valid_insert = 0;
 		last_in = 0;
 		keep_in = 0;
-		#100;
+		delay_in = {$random()} % MAX_DELAY+1 ;
+		repeat(delay_in) @(posedge clk);
+		#1;	
+
 	end
 end
 
-//验证逐级反压
-
-	initial begin
-		ready_out = 1'd1;
-		#600;
+//随机产生head insert
+integer delay_insert;
+initial begin
+	valid_insert = 0;
+	data_insert = 0;
+	keep_insert = 0;
+	byte_insert_cnt = 0;
+	#30;
+	repeat(100) begin
+		valid_insert = 1;
+		data_insert = {$random()};
+		byte_insert_cnt = {$random()} % DATA_BYTE_WD;
+		keep_insert = random_keep_insert(byte_insert_cnt);
+		while(!ready_insert) begin 
+			#1;
+		end
+		@(posedge clk);
+		// valid_insert = 0;
+		delay_insert = {$random()} % MAX_DATA_COUNT;
+		repeat(delay_insert) @(posedge clk);
 		#1;
-		ready_out = 1'd0;
-		#18
-		#100;
-		ready_out = 1'd1;
-		#300;
-		#1
-		ready_out = 1'd0;
-		#18
-		#50;
-		ready_out = 1'd1;
 	end
+end
+
+
+//随机产生ready_out,产生ready_out为1的可能性更大
+integer delay_out;
+initial begin
+	ready_out = 0;
+	#30;
+	repeat(100) begin
+		ready_out = ({$random()} % 10) > 1 ? 1:0;
+		delay_out = {$random()} % MAX_DATA_COUNT;
+		repeat(delay_out) #31;
+	end
+end
+
 
 endmodule
