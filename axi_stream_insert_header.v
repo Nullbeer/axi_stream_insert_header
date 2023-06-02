@@ -78,7 +78,7 @@ assign stop_in_flag			= r_last_in && shakehand_out;
 //数据移动字节计算
 assign d0_byte_cnt			= r_byte_insert_cnt+1;
 assign d0_byte_cnt_8 		= d0_byte_cnt << 3;	
-assign d0_byte_cnt_shift 	= 'd4-d0_byte_cnt;
+assign d0_byte_cnt_shift 	= DATA_BYTE_WD-d0_byte_cnt;
 assign d0_byte_cnt_shift_8 	= d0_byte_cnt_shift << 3;	
 
 //data,keep暂存计算
