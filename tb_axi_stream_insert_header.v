@@ -104,8 +104,6 @@ end
 
 // 随机产生数据通路数据
 integer delay_in;
-integer i;
-
 initial begin
 	valid_in = 0;
 	#30;
@@ -120,6 +118,7 @@ initial begin
 end
 
 integer data_count;
+integer i;
 initial begin
 	data_in = 0;
 	keep_in = 0;
@@ -158,8 +157,6 @@ initial begin
 	#30
 	while(1) begin
 		valid_insert = {$random % 10} > 3 ? 1:0;
-		// @(posedge clk) #1;
-		// while() #1;
 		delay_insert = {$random} % MAX_DATA_COUNT;
 		repeat(delay_insert) begin 
 			@(posedge clk);
