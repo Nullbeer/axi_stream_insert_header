@@ -73,7 +73,7 @@ function [DATA_WD-1 : 0] random_keep_insert;
     end
 endfunction
 
-//随机产生last keep in
+//随机产生last last in
 function [DATA_WD-1 : 0] random_last_keep_in;
 	input integer number_rl;
 
@@ -90,7 +90,7 @@ function [DATA_WD-1 : 0] random_last_keep_in;
 endfunction
 
 
-
+//产生时钟
 initial clk = 1;
 always #10 clk <= ~clk;
 
@@ -103,45 +103,51 @@ end
 
 
 // 随机产生数据通路数据
-integer data_count,delay_in;
+integer delay_in;
 integer i;
+
 initial begin
 	valid_in = 0;
-	data_in = 0;
-	last_in = 0;
-	keep_in = 0;
 	#30;
-	
-	repeat(100) begin
-		data_count = {$random()} % MAX_DATA_COUNT + 2;
-			
-		for(i=0;i<data_count;i=i+1) begin
-			valid_in = 1;
-			data_in = {$random()};
-			keep_in = 32'hFFFF_FFFF;
+	while(1) begin
+		valid_in = {$random % 100} > 9 ? 1:0;
+		delay_in = {$random} % MAX_DELAY;
+		repeat(delay_in) begin 
 			@(posedge clk);
-			while(!ready_in) begin 
-				#1;
+		end
+	   	#1;
+	end
+end
+
+integer data_count;
+initial begin
+	data_in = 0;
+	keep_in = 0;
+	last_in = 0;
+	#30;
+	while(1) begin
+		data_count = {$random()} % MAX_DATA_COUNT + 2;
+		for(i=0;i<data_count;i=i+1) begin
+			keep_in = 32'hFFFF_FFFF;
+			data_in = $random;
+			@(posedge clk);
+			while(!(valid_in && ready_in))begin
+				@(posedge clk);
 			end
 			#1;
-
 		end
 		data_in = {$random()};
 		keep_in = random_last_keep_in({$random() % DATA_BYTE_WD});
 		last_in = 1'd1;
 		@(posedge clk);
-		while(!ready_in) begin 
-			#1;
+		while(!(valid_in && ready_in))begin
+			@(posedge clk);
 		end
 		#1;
-
-		valid_in = 0;
 		last_in = 0;
-		keep_in = 0;
-		delay_in = {$random()} % MAX_DELAY+1 ;
-		repeat(delay_in) @(posedge clk);
-		#1;	
-
+		data_in = 32'd0;
+		keep_in = 32'd0;
+		@(posedge clk); #1;
 	end
 end
 
@@ -149,36 +155,47 @@ end
 integer delay_insert;
 initial begin
 	valid_insert = 0;
-	data_insert = 0;
-	keep_insert = 0;
-	byte_insert_cnt = 0;
-	#30;
-	repeat(100) begin
-		valid_insert = 1;
-		data_insert = {$random()};
-		byte_insert_cnt = {$random()} % DATA_BYTE_WD;
-		keep_insert = random_keep_insert(byte_insert_cnt);
-		while(!ready_insert) begin 
-			#1;
+	#30
+	while(1) begin
+		valid_insert = {$random % 10} > 3 ? 1:0;
+		// @(posedge clk) #1;
+		// while() #1;
+		delay_insert = {$random} % MAX_DATA_COUNT;
+		repeat(delay_insert) begin 
+			@(posedge clk);
 		end
-		@(posedge clk);
-		// valid_insert = 0;
-		delay_insert = {$random()} % MAX_DATA_COUNT;
-		repeat(delay_insert) @(posedge clk);
 		#1;
 	end
 end
 
+initial begin
+	data_insert = 0;
+	keep_insert = 0;
+	byte_insert_cnt = 0;
+	#30; 
+	while(1) begin
+		data_insert = $random();
+		byte_insert_cnt = {$random()} % DATA_BYTE_WD;
+		keep_insert = random_keep_insert(byte_insert_cnt);
+		while(!(valid_insert && ready_insert))begin
+			@(posedge clk);
+		end
+		#1;
+	end
+end
 
 //随机产生ready_out,产生ready_out为1的可能性更大
 integer delay_out;
 initial begin
 	ready_out = 0;
 	#30;
-	repeat(100) begin
-		ready_out = ({$random()} % 10) > 1 ? 1:0;
+	while(1) begin
+		ready_out = ({$random()} % 10) > 3 ? 1:0;
 		delay_out = {$random()} % MAX_DATA_COUNT;
-		repeat(delay_out) #31;
+		repeat(delay_out) begin
+		   	@(posedge clk); 
+		end
+		#1;
 	end
 end
 
