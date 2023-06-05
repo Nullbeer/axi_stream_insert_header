@@ -12,8 +12,8 @@ module tb_axi_stream_insert_header();
 	reg 		rst_n;
 	reg 		valid_in;
 	reg 		[DATA_WD-1 : 0] data_in;
-	reg 		[DATA_BYTE_WD-1 : 0] keep_in;
-	reg 		last_in;
+	wire 		[DATA_BYTE_WD-1 : 0] keep_in;
+	wire 		last_in;
      
 	wire 		ready_in;
 	wire 		valid_out;
@@ -117,35 +117,31 @@ integer i;
 always@(posedge clk) begin
 	if(!rst_n) begin
 		data_in <= $random;
-		keep_in <= 32'hFFFF_FFFF;
-		last_in <= 0;
-		data_count = {$random} % MAX_DATA_COUNT + 1;
+		data_count = {$random} % MAX_DATA_COUNT;
 		i=0;
 	end
 	else if(valid_in && ready_in) begin
 		if(i < data_count) begin
 			data_in <= $random;
-			keep_in <= 32'hFFFF_FFFF;
-			last_in <= 0;
 			i = i+1;
 		end
-		else if(i >= data_count && !last_in) begin
-			data_in <= $random; 
-			keep_in <= random_last_keep_in({$random} % DATA_BYTE_WD);
-			last_in <= 1;
-			data_count = {$random} % MAX_DATA_COUNT + 1;
-			i=0;
+		else if(i >= data_count) begin
+			data_in <= $random;
+			i = 0;
+			data_count = {$random} % MAX_DATA_COUNT;
 		end
 	end
-
 end
+
+assign last_in = (i==data_count);
+assign keep_in = (i==data_count)? random_last_keep_in({$random() % DATA_BYTE_WD}) : 32'hFFFF_FFFF;
 
 // 随机产生head通路数据
 always@(posedge clk) begin
 	if(!rst_n)
 		valid_insert <= 0;
 	else if(!valid_insert || ready_insert) 
-		valid_insert <=  {$random % 10} > 3 ? 1:0;
+		valid_insert <=  {$random % 10} > 8 ? 1:0;
 	else
 		valid_insert <= valid_insert;
 end
