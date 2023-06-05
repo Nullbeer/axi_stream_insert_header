@@ -131,7 +131,7 @@ always@(posedge clk) begin
 		end
 		else if(i >= data_count && !last_in) begin
 			data_in <= $random; 
-			keep_in <= random_last_keep_in({$random() % DATA_BYTE_WD});
+			keep_in <= random_last_keep_in({$random} % DATA_BYTE_WD);
 			last_in <= 1;
 			data_count = {$random} % MAX_DATA_COUNT + 1;
 			i=0;
