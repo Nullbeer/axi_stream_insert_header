@@ -24,7 +24,7 @@ module tb_axi_stream_insert_header();
 
 	reg 		valid_insert;
 	reg 		[DATA_WD-1 : 0] data_insert;
-	reg 		[DATA_BYTE_WD-1 : 0] keep_insert;
+	wire 		[DATA_BYTE_WD-1 : 0] keep_insert;
 	reg 		[BYTE_CNT_WD-1 : 0] byte_insert_cnt;
 
 	wire 		ready_insert;
@@ -103,98 +103,72 @@ end
 
 
 // 随机产生数据通路数据
-integer delay_in;
-initial begin
-	valid_in = 0;
-	#30;
-	while(1) begin
-		valid_in = {$random % 100} > 9 ? 1:0;
-		delay_in = {$random} % MAX_DELAY;
-		repeat(delay_in) begin 
-			@(posedge clk);
-		end
-	   	#1;
-	end
-end
+always@(posedge clk) begin
+	if(!rst_n)
+		valid_in <= 0;
+	else if(!valid_in || ready_in)
+		valid_in <= {$random} % 10 > 3 ? 1:0;
+	else
+		valid_in <= valid_in;
+end	
 
 integer data_count;
 integer i;
-initial begin
-	data_in = 0;
-	keep_in = 0;
-	last_in = 0;
-	#30;
-	while(1) begin
-		data_count = {$random()} % MAX_DATA_COUNT + 2;
-		for(i=0;i<data_count;i=i+1) begin
-			keep_in = 32'hFFFF_FFFF;
-			data_in = $random;
-			@(posedge clk);
-			while(!(valid_in && ready_in))begin
-				@(posedge clk);
-			end
-			#1;
+always@(posedge clk) begin
+	if(!rst_n) begin
+		data_in <= $random;
+		keep_in <= 32'hFFFF_FFFF;
+		last_in <= 0;
+		data_count = {$random} % MAX_DATA_COUNT + 1;
+		i=0;
+	end
+	else if(valid_in && ready_in) begin
+		if(i < data_count) begin
+			data_in <= $random;
+			keep_in <= 32'hFFFF_FFFF;
+			last_in <= 0;
+			i = i+1;
 		end
-		data_in = {$random()};
-		keep_in = random_last_keep_in({$random() % DATA_BYTE_WD});
-		last_in = 1'd1;
-		@(posedge clk);
-		while(!(valid_in && ready_in))begin
-			@(posedge clk);
+		else if(i >= data_count && !last_in) begin
+			data_in <= $random; 
+			keep_in <= random_last_keep_in({$random() % DATA_BYTE_WD});
+			last_in <= 1;
+			data_count = {$random} % MAX_DATA_COUNT + 1;
+			i=0;
 		end
-		#1;
-		last_in = 0;
-		data_in = 32'd0;
-		keep_in = 32'd0;
-		@(posedge clk); #1;
+	end
+
+end
+
+// 随机产生head通路数据
+always@(posedge clk) begin
+	if(!rst_n)
+		valid_insert <= 0;
+	else if(!valid_insert || ready_insert) 
+		valid_insert <=  {$random % 10} > 3 ? 1:0;
+	else
+		valid_insert <= valid_insert;
+end
+
+always@(posedge clk) begin
+	if(!rst_n) begin
+		data_insert <= $random;
+		byte_insert_cnt <= {$random} % DATA_BYTE_WD;
+	end
+	else if(valid_insert && ready_insert) begin
+		data_insert <= $random;
+		byte_insert_cnt <= {$random} % DATA_BYTE_WD;
 	end
 end
 
-//随机产生head insert
-integer delay_insert;
-initial begin
-	valid_insert = 0;
-	#30
-	while(1) begin
-		valid_insert = {$random % 10} > 3 ? 1:0;
-		delay_insert = {$random} % MAX_DATA_COUNT;
-		repeat(delay_insert) begin 
-			@(posedge clk);
-		end
-		#1;
-	end
-end
+assign keep_insert = random_keep_insert(byte_insert_cnt);
 
-initial begin
-	data_insert = 0;
-	keep_insert = 0;
-	byte_insert_cnt = 0;
-	#30; 
-	while(1) begin
-		data_insert = $random();
-		byte_insert_cnt = {$random()} % DATA_BYTE_WD;
-		keep_insert = random_keep_insert(byte_insert_cnt);
-		while(!(valid_insert && ready_insert))begin
-			@(posedge clk);
-		end
-		#1;
-	end
+// 随机产生ready out
+always@(posedge clk) begin
+	if(!rst_n)
+		ready_out <= 1'd0;
+	else
+		ready_out <= ({$random} % 10) > 1 ? 1:0;
 end
-
-//随机产生ready_out,产生ready_out为1的可能性更大
-integer delay_out;
-initial begin
-	ready_out = 0;
-	#30;
-	while(1) begin
-		ready_out = ({$random()} % 10) > 3 ? 1:0;
-		delay_out = {$random()} % MAX_DATA_COUNT;
-		repeat(delay_out) begin
-		   	@(posedge clk); 
-		end
-		#1;
-	end
-end
-
 
 endmodule
