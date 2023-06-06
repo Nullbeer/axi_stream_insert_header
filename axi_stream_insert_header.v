@@ -28,9 +28,10 @@ module axi_stream_insert_header # (
 /*****************************寄存器****************************/
 
 reg r_ready_in;
+reg r_valid_in;
 reg [DATA_WD-1 : 0] r1_data_in,r2_data_in;
 reg [DATA_BYTE_WD-1 : 0] r1_keep_in,r2_keep_in;
-	
+
 reg r_ready_insert;
 reg [DATA_WD-1 : 0] r_data_insert; 
 reg [DATA_WD-1 : 0] r_keep_insert; 
@@ -88,7 +89,8 @@ assign keep_out_temp		= (r2_keep_in << d0_byte_cnt_shift) | (r1_keep_in >> d0_by
 //数据输出
 assign keep_out		 		= keep_out_temp; 	
 assign data_out				= data_out_temp;
-assign valid_out 			= |r2_keep_in;
+assign valid_out 			= r_valid_in || last_out;
+// assign valid_out 			= |r2_keep_in && r_valid_in || last_out;
 	// (|r1_keep_in) | last_out; 
 assign last_out 			= (|r1_keep_in) ?
 					  			(|(r_keep_insert & r1_keep_in) ? 1'd0 : 1'd1) :
@@ -109,6 +111,7 @@ always@(posedge clk) begin
 	else
 	    start_flag <= start_flag;
 end
+
 
 always@(posedge clk) begin
 	if(!rst_n || stop_out_flag)
@@ -136,6 +139,15 @@ end
 
 always@(posedge clk) begin
 	if(!rst_n || stop_out_flag)
+		r_valid_in <= 1'd0;
+	else if(ready_in)
+		r_valid_in <= valid_in;	
+	else
+		r_valid_in <= r_valid_in;
+end
+
+always@(posedge clk) begin
+	if(!rst_n || stop_out_flag)
 		r_byte_insert_cnt <= 'd0;
 	else if(shakehand_insert)
 		r_byte_insert_cnt <= byte_insert_cnt;
@@ -144,7 +156,7 @@ always@(posedge clk) begin
 end
 
 always@(posedge clk) begin
-	if(!rst_n || stop_out_flag)
+	if(!rst_n || stop_in_flag)
 		r_last_in <= 1'd0;
 	else if(shakehand_in)
 		r_last_in <= last_in;
